@@ -11,11 +11,15 @@ class AuthenticationInformationRetrievalProcedureHandler(object):
         self.nextEndToEndId = 0
         self.outstandingRequests = {}
         self.PlmnList = []
+        self.knownIMSIs = []
 
     def handleIncomingMessage(self, source, interface, channelInfo, message):
         endToEndId = channelInfo["endToEndId"]
         if message["visitedPlmnId"] not in self.PlmnList:
             self.ioService.sendMessage(source, *authenticationInformationAnswer(5004, [], endToEndId))
+            self.procedureCompletionCallback(self.Failure, message["imsi"])
+        elif message["imsi"] not in self.knownIMSIs:
+            self.ioService.sendMessage(source, *authenticationInformationAnswer(5001, [], endToEndId))
             self.procedureCompletionCallback(self.Failure, message["imsi"])
         else:
             self.ioService.sendMessage(source, *authenticationInformationAnswer(2001, [], endToEndId))
