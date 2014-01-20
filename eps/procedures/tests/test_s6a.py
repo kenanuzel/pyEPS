@@ -68,3 +68,22 @@ class TestS1SetupProcedureHandler(unittest.TestCase):
             hssAuthProcHandler.knownIMSIs.append(randomImsi)
         mmeAuthProcHandler.execute(imsi, visitedPlmnId)
         self.assertEqual(self.mmeSuccessCount,0)
+        
+    def test_ignoreDuplicateRequests(self):
+        n = 100
+        visitedPlmnId = "28603"
+        mmeAuthProcHandler = MmeAuthProcedureHandler((localhost(), 9000), self.mmeIoService, self.__mmeAuthCompleteCallback__)
+        self.mmeIoService.addIncomingMessageCallback(mmeAuthProcHandler.handleIncomingMessage)
+        hssAuthProcHandler = HssAuthProcedureHandler(self.hssIoService, self.__hssAuthCompleteCallback__)
+        self.hssIoService.addIncomingMessageCallback(hssAuthProcHandler.handleIncomingMessage)
+        for _ in range(n):
+            randomImsi = visitedPlmnId + "".join([str(random.randrange(0, 10)) for __ in range(10)])
+            hssAuthProcHandler.knownIMSIs.append(randomImsi)
+            mmeAuthProcHandler.execute(randomImsi, visitedPlmnId)
+            time.sleep(0.1)
+            mmeAuthProcHandler.nextEndToEndId -= 1
+            mmeAuthProcHandler.execute(randomImsi, visitedPlmnId)
+            time.sleep(0.1)
+        time.sleep(1.0)
+        self.assertEqual(self.mmeSuccessCount, n)
+        self.assertEqual(self.hssSuccessCount, n)
