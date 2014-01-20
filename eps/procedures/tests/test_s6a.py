@@ -14,17 +14,20 @@ class TestS1SetupProcedureHandler(unittest.TestCase):
         self.hssIoService.start()
         self.mmeIoService = IoService("mme", 9001)
         self.mmeIoService.start()
-        self.mmeSuccess, self.hssSuccess = 0, 0
+        self.mmeSuccessCount, self.hssSuccessCount = 0, 0
 
     def tearDown(self):
         self.hssIoService.stop()
         self.mmeIoService.stop()
 
     def __mmeAuthCompleteCallback__(self, result, authContext=None):
-        self.mmeSuccess += 1
+        if result == MmeAuthProcedureHandler.Success:
+            self.mmeSuccessCount += 1
+            
 
     def __hssAuthCompleteCallback__(self, result, imsi):
-        self.hssSuccess += 1
+        if result == HssAuthProcedureHandler.Success:
+            self.hssSuccessCount += 1
 
     def test_nAuthInfoRetrievalProcedureSuccess(self):
         n = 100
@@ -35,8 +38,19 @@ class TestS1SetupProcedureHandler(unittest.TestCase):
         self.hssIoService.addIncomingMessageCallback(hssAuthProcHandler.handleIncomingMessage)
         for _ in range(n):
             randomImsi = visitedPlmnId + "".join([str(random.randrange(0, 10)) for __ in range(10)])
+            hssAuthProcHandler.knownIMSIs.append(randomImsi)
             mmeAuthProcHandler.execute(randomImsi, visitedPlmnId)
             time.sleep(0.1)
         time.sleep(1.0)
-        self.assertEqual(self.mmeSuccess, n)
-        self.assertEqual(self.hssSuccess, n)
+        self.assertEqual(self.mmeSuccessCount, n)
+        self.assertEqual(self.hssSuccessCount, n)
+        
+    def test_roamingNotAllowedError(self):
+        visitedPlmnId = "47836"
+        imsi = "286031595270296"
+        mmeAuthProcHandler = MmeAuthProcedureHandler((localhost(), 9000), self.mmeIoService, self.__mmeAuthCompleteCallback__)
+        self.mmeIoService.addIncomingMessageCallback(mmeAuthProcHandler.handleIncomingMessage)
+        hssAuthProcHandler = HssAuthProcedureHandler(self.hssIoService, self.__hssAuthCompleteCallback__)
+        self.hssIoService.addIncomingMessageCallback(hssAuthProcHandler.handleIncomingMessage)
+        mmeAuthProcHandler.execute(imsi, visitedPlmnId)
+        self.assertEqual(self.mmeSuccessCount,0)
