@@ -54,3 +54,17 @@ class TestS1SetupProcedureHandler(unittest.TestCase):
         self.hssIoService.addIncomingMessageCallback(hssAuthProcHandler.handleIncomingMessage)
         mmeAuthProcHandler.execute(imsi, visitedPlmnId)
         self.assertEqual(self.mmeSuccessCount,0)
+        
+    def test_unknownImsiError(self):
+        n = 10
+        visitedPlmnId = "28603"
+        imsi = "286056548201466"
+        mmeAuthProcHandler = MmeAuthProcedureHandler((localhost(), 9000), self.mmeIoService, self.__mmeAuthCompleteCallback__)
+        self.mmeIoService.addIncomingMessageCallback(mmeAuthProcHandler.handleIncomingMessage)
+        hssAuthProcHandler = HssAuthProcedureHandler(self.hssIoService, self.__hssAuthCompleteCallback__)
+        self.hssIoService.addIncomingMessageCallback(hssAuthProcHandler.handleIncomingMessage)
+        for _ in range(n):
+            randomImsi = visitedPlmnId + "".join([str(random.randrange(0, 10)) for __ in range(10)])
+            hssAuthProcHandler.knownIMSIs.append(randomImsi)
+        mmeAuthProcHandler.execute(imsi, visitedPlmnId)
+        self.assertEqual(self.mmeSuccessCount,0)
