@@ -1,5 +1,5 @@
 from eps.messages.s6a import authenticationInformationAnswer
-
+import time
 
 class AuthenticationInformationRetrievalProcedureHandler(object):
 
@@ -15,16 +15,15 @@ class AuthenticationInformationRetrievalProcedureHandler(object):
 
     def handleIncomingMessage(self, source, interface, channelInfo, message):
         endToEndId = channelInfo["endToEndId"]
-        if endToEndId in self.outstandingRequests:
-            pass
+        time.sleep(0.1)
+        self.outstandingRequests[endToEndId] = {"imsi": message["imsi"], "visitedPlmnId": message["visitedPlmnId"]}
+        if message["visitedPlmnId"] not in self.plmnList:
+            self.ioService.sendMessage(source, *authenticationInformationAnswer(5004, [], endToEndId))
+            self.procedureCompletionCallback(self.Failure, message["imsi"])
+        elif message["imsi"] not in self.knownIMSIs:
+            self.ioService.sendMessage(source, *authenticationInformationAnswer(5001, [], endToEndId))
+            self.procedureCompletionCallback(self.Failure, message["imsi"])
         else:
-            self.outstandingRequests[endToEndId] = {"imsi": message["imsi"], "visitedPlmnId": message["visitedPlmnId"]}
-            if message["visitedPlmnId"] not in self.plmnList:
-                self.procedureCompletionCallback(self.Failure, message["imsi"])
-                self.ioService.sendMessage(source, *authenticationInformationAnswer(5004, [], endToEndId))
-            elif message["imsi"] not in self.knownIMSIs:
-                self.ioService.sendMessage(source, *authenticationInformationAnswer(5001, [], endToEndId))
-                self.procedureCompletionCallback(self.Failure, message["imsi"])
-            else:
-                self.ioService.sendMessage(source, *authenticationInformationAnswer(2001, [], endToEndId))
-                self.procedureCompletionCallback(self.Success, message["imsi"])
+            self.ioService.sendMessage(source, *authenticationInformationAnswer(2001, [], endToEndId))
+            self.procedureCompletionCallback(self.Success, message["imsi"])
+        del self.outstandingRequests[endToEndId]
